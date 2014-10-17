@@ -18,14 +18,13 @@
 
 @implementation AGPhotoBrowserCell
 
-- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+- (instancetype)initWithFrame:(CGRect)frame
 {
-	self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
-	if (self) {
-		[self setupCell];
-	}
-	
-	return self;
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self setupCell];
+    }
+    return self;
 }
 
 - (void)updateConstraints
@@ -74,14 +73,7 @@
 		_zoomableView.userInteractionEnabled = YES;
         _zoomableView.zoomableDelegate = self;
 		
-		[_zoomableView addGestureRecognizer:self.panGesture];
-        
-		CGAffineTransform transform = CGAffineTransformMakeRotation(M_PI_2);
-		CGPoint origin = _zoomableView.frame.origin;
-		_zoomableView.transform = transform;
-        CGRect frame = _zoomableView.frame;
-        frame.origin = origin;
-        _zoomableView.frame = frame;
+		//[_zoomableView addGestureRecognizer:self.panGesture];
 	}
 	
 	return _zoomableView;

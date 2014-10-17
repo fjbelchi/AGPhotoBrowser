@@ -17,8 +17,9 @@
 @interface AGPhotoBrowserView () <
 AGPhotoBrowserOverlayViewDelegate,
 AGPhotoBrowserCellDelegate,
-UITableViewDataSource,
-UITableViewDelegate,
+UICollectionViewDataSource,
+UICollectionViewDelegate,
+UIBarPositioningDelegate,
 UIGestureRecognizerDelegate
 > {
 	CGPoint _startingPanPoint;
@@ -31,13 +32,13 @@ UIGestureRecognizerDelegate
 }
 
 @property (nonatomic, strong, readwrite) UIButton *doneButton;
-@property (nonatomic, strong) UITableView *photoTableView;
+@property (nonatomic, strong) UICollectionView *photoCollectionView;
 @property (nonatomic, strong) AGPhotoBrowserOverlayView *overlayView;
 
 @property (nonatomic, strong) UIWindow *previousWindow;
 @property (nonatomic, strong) UIWindow *currentWindow;
 
-@property (nonatomic, assign, readonly) CGFloat cellHeight;
+@property (nonatomic, assign, readonly) CGSize cellSize;
 
 @property (nonatomic, assign, getter = isDisplayingDetailedView) BOOL displayingDetailedView;
 
@@ -67,7 +68,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	_currentlySelectedIndex = NSNotFound;
     _changingOrientation = NO;
 	
-	[self addSubview:self.photoTableView];
+	[self addSubview:self.photoCollectionView];
 	[self addSubview:self.doneButton];
 	[self addSubview:self.overlayView];
 	
@@ -105,30 +106,24 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	return _doneButton;
 }
 
-- (UITableView *)photoTableView
+- (UICollectionView *)photoCollectionView
 {
-	if (!_photoTableView) {
-		CGRect screenBounds = [[UIScreen mainScreen] bounds];
-		_photoTableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 0, CGRectGetHeight(screenBounds), CGRectGetWidth(screenBounds))];
-		_photoTableView.dataSource = self;
-		_photoTableView.delegate = self;
-		_photoTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-		_photoTableView.backgroundColor = [UIColor clearColor];
-		_photoTableView.pagingEnabled = YES;
-		_photoTableView.showsVerticalScrollIndicator = NO;
-		_photoTableView.showsHorizontalScrollIndicator = NO;
-		_photoTableView.alpha = 0.;
-		
-		// -- Rotate table horizontally
-		CGAffineTransform rotateTable = CGAffineTransformMakeRotation(-M_PI_2);
-		CGPoint origin = _photoTableView.frame.origin;
-		_photoTableView.transform = rotateTable;
-		CGRect frame = _photoTableView.frame;
-		frame.origin = origin;
-		_photoTableView.frame = frame;
-	}
-	
-	return _photoTableView;
+    if (!_photoCollectionView) {
+
+        CGRect screenBounds = [[UIScreen mainScreen] bounds];
+        
+        UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
+        layout.itemSize = screenBounds.size;
+        layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
+        
+        _photoCollectionView = [[UICollectionView alloc] initWithFrame:screenBounds collectionViewLayout:layout];
+        _photoCollectionView.dataSource = self;
+        _photoCollectionView.delegate = self;
+        _photoCollectionView.pagingEnabled = YES;
+        [_photoCollectionView registerClass:[AGPhotoBrowserCell class] forCellWithReuseIdentifier:CellIdentifier];
+    }
+    
+    return _photoCollectionView;
 }
 
 - (AGPhotoBrowserOverlayView *)overlayView
@@ -141,14 +136,14 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	return _overlayView;
 }
 
-- (CGFloat)cellHeight
+- (CGSize)cellSize
 {
 	UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
 	if (UIDeviceOrientationIsLandscape(orientation)) {
-		return CGRectGetHeight(self.currentWindow.frame);
+		return self.currentWindow.frame.size;
 	}
 	
-	return CGRectGetWidth(self.currentWindow.frame);
+	return self.currentWindow.frame.size;
 }
 
 
@@ -174,22 +169,11 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 					 }];
 }
 
+#pragma mark - UICollectionViewDataSource
 
-#pragma mark - UITableViewDataSource
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
-    return 1;
-}
-
-- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
-{
-	return self.cellHeight;
-}
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
-{
-	NSInteger number = [_dataSource numberOfPhotosForPhotoBrowser:self];
+    NSInteger number = [_dataSource numberOfPhotosForPhotoBrowser:self];
     
     if (number > 0 && _currentlySelectedIndex == NSNotFound && !self.currentWindow.hidden) {
         // initialize with info for the first photo in photoTable
@@ -199,28 +183,17 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
     return number;
 }
 
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    UITableViewCell<AGPhotoBrowserCellProtocol> *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-    if (!cell) {
-        if ([_dataSource respondsToSelector:@selector(cellForBrowser:withReuseIdentifier:)]) {
-            cell = [_dataSource cellForBrowser:self withReuseIdentifier:CellIdentifier];
-        } else {
-            // -- Provide fallback if the user does not want its own implementation of a cell
-            cell = [[AGPhotoBrowserCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
-        }
-        
-		cell.selectionStyle = UITableViewCellSelectionStyleNone;
-		cell.delegate = self;
-    }
-
+    AGPhotoBrowserCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:CellIdentifier forIndexPath:indexPath];
+    
     [self configureCell:cell forRowAtIndexPath:indexPath];
     [self.overlayView resetOverlayView];
     
     return cell;
 }
 
-- (void)configureCell:(UITableViewCell<AGPhotoBrowserCellProtocol> *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+- (void)configureCell:(UICollectionViewCell<AGPhotoBrowserCellProtocol> *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
 {
     if ([cell respondsToSelector:@selector(resetZoomScale)]) {
         [cell resetZoomScale];
@@ -233,19 +206,12 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
     }
 }
 
+#pragma mark - UICollectionViewDelegate
 
-#pragma mark - UITableViewDelegate
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
     self.displayingDetailedView = !self.isDisplayingDetailedView;
 }
-
-- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
-{
-	cell.backgroundColor = [UIColor clearColor];
-}
-
 
 #pragma mark - AGPhotoBrowserCellDelegate
 
@@ -259,7 +225,6 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	self.displayingDetailedView = !self.isDisplayingDetailedView;
 }
 
-
 #pragma mark - UIScrollViewDelegate
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
@@ -269,8 +234,8 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
         
         CGPoint targetContentOffset = scrollView.contentOffset;
         
-        UITableView *tv = (UITableView*)scrollView;
-        NSIndexPath *indexPathOfTopRowAfterScrolling = [tv indexPathForRowAtPoint:targetContentOffset];
+        UICollectionView *collectionView = (UICollectionView *)scrollView;
+        NSIndexPath *indexPathOfTopRowAfterScrolling = [collectionView indexPathForItemAtPoint:targetContentOffset];
 
         [self setupPhotoForIndex:indexPathOfTopRowAfterScrolling.row];
     }
@@ -321,8 +286,8 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 						 if (finished) {
 							 self.userInteractionEnabled = YES;
 							 self.displayingDetailedView = YES;
-							 self.photoTableView.alpha = 1.;
-							 [self.photoTableView reloadData];
+							 self.photoCollectionView.alpha = 1.;
+							 [self.photoCollectionView reloadData];
 						 }
 					 }];
 }
@@ -332,7 +297,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	[self show];
 	
 	if (initialIndex < [_dataSource numberOfPhotosForPhotoBrowser:self]) {
-		[self.photoTableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:initialIndex inSection:0] atScrollPosition:UITableViewScrollPositionMiddle animated:NO];
+		[self.photoCollectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForRow:initialIndex inSection:0] atScrollPosition:UICollectionViewScrollPositionNone animated:NO];
 	}
 }
 
@@ -340,7 +305,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 {
 	[UIView animateWithDuration:AGPhotoBrowserAnimationDuration
 					 animations:^(){
-						 self.photoTableView.alpha = 0.;
+						 self.photoCollectionView.alpha = 0.;
 						 self.backgroundColor = [UIColor colorWithWhite:0. alpha:0.];
 					 }
 					 completion:^(BOOL finished){
@@ -374,7 +339,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	
 	if (recognizer.state == UIGestureRecognizerStateBegan) {
 		// -- Disable table view scrolling
-		self.photoTableView.scrollEnabled = NO;
+		self.photoCollectionView.scrollEnabled = NO;
 		// -- Hide detailed view
 		self.displayingDetailedView = NO;
 		_startingPanPoint = imageView.center;
@@ -383,7 +348,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	
 	if (recognizer.state == UIGestureRecognizerStateEnded) {
 		// -- Enable table view scrolling
-		self.photoTableView.scrollEnabled = YES;
+		self.photoCollectionView.scrollEnabled = YES;
 		// -- Check if user dismissed the view
 		CGPoint endingPanPoint = [recognizer translationInView:self];
 
@@ -472,8 +437,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 		CGRect overlayFrame = CGRectZero;
 		CGRect doneFrame = CGRectZero;
 		
-		// -- Update table
-		[self setTransform:tableTransform andFrame:tableFrame forView:self.photoTableView];
+		[self setTransform:tableTransform andFrame:tableFrame forView:self.photoCollectionView];
 		
 		if (UIDeviceOrientationIsPortrait(orientation) || orientation == UIDeviceOrientationFaceUp) {
 			overlayFrame = CGRectMake(0, CGRectGetHeight(tableFrame) - AGPhotoBrowserOverlayInitialHeight, CGRectGetWidth(tableFrame), AGPhotoBrowserOverlayInitialHeight);
@@ -493,8 +457,8 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 		// -- Update done button
 		[self setTransform:overlayTransform andFrame:doneFrame forView:self.doneButton];
 		
-		[self.photoTableView reloadData];
-		[self.photoTableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:_currentlySelectedIndex inSection:0] atScrollPosition:UITableViewScrollPositionNone animated:NO];
+		[self.photoCollectionView reloadData];
+		[self.photoCollectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForRow:_currentlySelectedIndex inSection:0] atScrollPosition:UICollectionViewScrollPositionNone animated:NO];
 
 		_changingOrientation = NO;
 	}

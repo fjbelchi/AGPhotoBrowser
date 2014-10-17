@@ -10,7 +10,7 @@
 
 #import "AGPhotoBrowserCellProtocol.h"
 
-@interface AGPhotoBrowserCell : UITableViewCell <AGPhotoBrowserCellProtocol>
+@interface AGPhotoBrowserCell : UICollectionViewCell <AGPhotoBrowserCellProtocol>
 
 @property (nonatomic, weak) id<AGPhotoBrowserCellDelegate> delegate;
 

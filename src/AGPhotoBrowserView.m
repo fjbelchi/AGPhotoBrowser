@@ -45,6 +45,7 @@ UIGestureRecognizerDelegate
 @end
 
 
+static NSString *DefaultCellIdentifier = @"AGPhotoBrowserCell";
 static NSString *CellIdentifier = @"AGPhotoBrowserCell";
 
 @implementation AGPhotoBrowserView
@@ -120,7 +121,7 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
         _photoCollectionView.dataSource = self;
         _photoCollectionView.delegate = self;
         _photoCollectionView.pagingEnabled = YES;
-        [_photoCollectionView registerClass:[AGPhotoBrowserCell class] forCellWithReuseIdentifier:CellIdentifier];
+        [_photoCollectionView registerClass:[AGPhotoBrowserCell class] forCellWithReuseIdentifier:DefaultCellIdentifier];
     }
     
     return _photoCollectionView;
@@ -169,6 +170,13 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 					 }];
 }
 
+- (void)setDataSource:(id<AGPhotoBrowserDataSource>)dataSource
+{
+    _dataSource = dataSource;
+    UICollectionViewCell<AGPhotoBrowserCellProtocol> *cell = [_dataSource cellForBrowser:self withReuseIdentifier:CellIdentifier];
+    [self.photoCollectionView registerClass:[cell class] forCellWithReuseIdentifier:CellIdentifier];
+}
+
 #pragma mark - UICollectionViewDataSource
 
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
@@ -185,8 +193,18 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
 {
-    AGPhotoBrowserCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:CellIdentifier forIndexPath:indexPath];
+    NSString *identifier;;
     
+    if ([_dataSource respondsToSelector:@selector(cellForBrowser:withReuseIdentifier:)]) {
+        identifier = CellIdentifier;
+    } else {
+        identifier = DefaultCellIdentifier;
+    }
+    
+    UICollectionViewCell<AGPhotoBrowserCellProtocol> *cell = [collectionView dequeueReusableCellWithReuseIdentifier:identifier forIndexPath:indexPath];
+    
+    cell.delegate = self;
+
     [self configureCell:cell forRowAtIndexPath:indexPath];
     [self.overlayView resetOverlayView];
     

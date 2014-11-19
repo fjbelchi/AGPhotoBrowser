@@ -73,17 +73,22 @@ const NSInteger AGPhotoBrowserThresholdToCenter = 150;
 	[self addSubview:self.doneButton];
 	[self addSubview:self.overlayView];
 	
-	[[NSNotificationCenter defaultCenter] addObserver:self
+    /*
+     * Removed orientation feature
+    [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(statusBarDidChangeFrame:)
                                                  name:UIDeviceOrientationDidChangeNotification
                                                object:nil];
+     */
 }
 
+/*
+ * Removed orientation feature
 - (void)dealloc
 {
-	[[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
-
+ */
 
 #pragma mark - Getters
 

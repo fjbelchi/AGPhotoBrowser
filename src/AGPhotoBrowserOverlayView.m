@@ -135,6 +135,8 @@
 {
     self.descriptionExpanded = NO;
     
+    /*
+     * Removed orientation feature
     UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
     
     CGRect frame = self.superview.frame;
@@ -146,6 +148,10 @@
     } else {
         overlayFrame = CGRectMake(CGRectGetWidth(frame) - AGPhotoBrowserOverlayInitialHeight, 0, AGPhotoBrowserOverlayInitialHeight, CGRectGetHeight(frame));
     }
+     */
+    
+    CGRect frame = self.superview.frame;
+    CGRect overlayFrame = CGRectMake(0, CGRectGetHeight(frame) - AGPhotoBrowserOverlayInitialHeight, CGRectGetWidth(frame), AGPhotoBrowserOverlayInitialHeight);
     
     [UIView animateWithDuration:0.15
                      animations:^(){
